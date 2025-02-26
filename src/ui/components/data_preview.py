@@ -11,7 +11,7 @@ from PyQt6.QtCore import Qt, QTimer
 
 class DataPreviewPanel(QWidget):
     """Panel for previewing loaded data."""
-    
+
     MAX_ROWS_PER_PAGE = 100  # Number of rows to show per page
     
     def __init__(self, data_manager):
