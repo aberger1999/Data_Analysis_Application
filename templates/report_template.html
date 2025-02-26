@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ title }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 40px;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .header {
+            border-bottom: 2px solid #3498db;
+            margin-bottom: 30px;
+            padding-bottom: 10px;
+        }
+        .section {
+            margin-bottom: 40px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .timestamp {
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            margin: 20px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .metric {
+            display: inline-block;
+            margin: 10px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .metric-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #2980b9;
+        }
+        .notes {
+            background-color: #fff;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ title }}</h1>
+        <p class="timestamp">Generated on: {{ timestamp }}</p>
+    </div>
+
+    {% if overview %}
+    <div class="section">
+        <h2>Data Overview</h2>
+        <div class="metric">
+            <div>Number of Rows</div>
+            <div class="metric-value">{{ overview.num_rows }}</div>
+        </div>
+        <div class="metric">
+            <div>Number of Columns</div>
+            <div class="metric-value">{{ overview.num_cols }}</div>
+        </div>
+        <div class="metric">
+            <div>Memory Usage</div>
+            <div class="metric-value">{{ "%.2f"|format(overview.memory_usage) }} MB</div>
+        </div>
+        
+        <h3>Column Types</h3>
+        <table>
+            <tr>
+                <th>Type</th>
+                <th>Count</th>
+            </tr>
+            {% for type, count in overview.column_types.items() %}
+            <tr>
+                <td>{{ type }}</td>
+                <td>{{ count }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        
+        <h3>Columns</h3>
+        <ul>
+            {% for column in overview.columns %}
+            <li>{{ column }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if stats %}
+    <div class="section">
+        <h2>Descriptive Statistics</h2>
+        
+        <h3>Numeric Variables</h3>
+        {{ stats.numeric_stats|safe }}
+        
+        <h3>Categorical Variables</h3>
+        {{ stats.categorical_stats|safe }}
+    </div>
+    {% endif %}
+
+    {% if quality %}
+    <div class="section">
+        <h2>Data Quality Analysis</h2>
+        
+        <h3>Missing Values</h3>
+        <table>
+            <tr>
+                <th>Column</th>
+                <th>Missing Count</th>
+                <th>Missing Percentage</th>
+            </tr>
+            {% for column in quality.missing_values.keys() %}
+            <tr>
+                <td>{{ column }}</td>
+                <td>{{ quality.missing_values[column] }}</td>
+                <td>{{ "%.2f"|format(quality.missing_percentage[column]) }}%</td>
+            </tr>
+            {% endfor %}
+        </table>
+        
+        <h3>Duplicate Rows</h3>
+        <p>Number of duplicate rows: {{ quality.duplicates }}</p>
+        
+        <h3>Unique Values</h3>
+        <table>
+            <tr>
+                <th>Column</th>
+                <th>Unique Values</th>
+            </tr>
+            {% for column, count in quality.unique_values.items() %}
+            <tr>
+                <td>{{ column }}</td>
+                <td>{{ count }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+
+    {% if correlation %}
+    <div class="section">
+        <h2>Correlation Analysis</h2>
+        
+        <h3>Correlation Matrix</h3>
+        {{ correlation.correlation_matrix|safe }}
+        
+        <h3>Correlation Heatmap</h3>
+        <img src="{{ correlation.heatmap_path }}" alt="Correlation Heatmap">
+    </div>
+    {% endif %}
+
+    {% if distributions %}
+    <div class="section">
+        <h2>Distribution Analysis</h2>
+        {% for column, plot_path in distributions.items() %}
+        <h3>Distribution of {{ column }}</h3>
+        <img src="{{ plot_path }}" alt="Distribution of {{ column }}">
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if timeseries %}
+    <div class="section">
+        <h2>Time Series Analysis</h2>
+        {% for column, plot_path in timeseries.items() %}
+        <h3>{{ column }} over Time</h3>
+        <img src="{{ plot_path }}" alt="Time series of {{ column }}">
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if ml_results %}
+    <div class="section">
+        <h2>Machine Learning Results</h2>
+        <!-- ML results will be added when connected to ML panel -->
+    </div>
+    {% endif %}
+
+    {% if custom_notes %}
+    <div class="section">
+        <h2>Custom Notes</h2>
+        <div class="notes">
+            {{ custom_notes|replace('\n', '<br>')|safe }}
+        </div>
+    </div>
+    {% endif %}
+</body>
+</html> 
