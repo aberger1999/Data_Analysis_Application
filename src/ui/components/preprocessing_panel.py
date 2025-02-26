@@ -31,6 +31,7 @@ class PreprocessingPanel(QWidget):
         self.redo_stack = []  # Stack for redo
         self.max_history = 20  # Maximum number of operations to store
         self.current_outliers = None  # Store current outlier detection results
+        self.data_loaded_flag = False  # Flag to track whether data has been loaded
         self.init_ui()
         self.setup_connections()
         
@@ -54,13 +55,17 @@ class PreprocessingPanel(QWidget):
         
         # Data type dropdown
         self.dtype_combo = QComboBox()
+        self.dtype_combo.addItem("")  # Empty item for when no column is selected
         self.dtype_combo.addItems(["int64", "float64", "string", "datetime", "boolean"])
         self.dtype_combo.setToolTip("Change Data Type")
+        self.dtype_combo.setEnabled(False)  # Disable initially until data is loaded
         column_layout.addWidget(self.dtype_combo)
         
         # Add common column operations
         self.rename_btn = QPushButton("Rename")
+        self.rename_btn.setEnabled(False)  # Disable initially until data is loaded
         self.remove_btn = QPushButton("Remove")
+        self.remove_btn.setEnabled(False)  # Disable initially until data is loaded
         column_layout.addWidget(self.rename_btn)
         column_layout.addWidget(self.remove_btn)
         ribbon.addWidget(column_group)
@@ -79,8 +84,10 @@ class PreprocessingPanel(QWidget):
             "Square Root",
             "Box-Cox"
         ])
+        self.transform_combo.setEnabled(False)  # Disable initially until data is loaded
         transform_layout_group.addWidget(self.transform_combo)
         self.apply_transform_btn = QPushButton("Apply")
+        self.apply_transform_btn.setEnabled(False)  # Disable initially until data is loaded
         transform_layout_group.addWidget(self.apply_transform_btn)
         ribbon.addWidget(transform_group)
         
@@ -89,10 +96,13 @@ class PreprocessingPanel(QWidget):
         filter_layout_group = QHBoxLayout(filter_group)
         
         self.filter_column = QComboBox()
+        self.filter_column.setEnabled(False)  # Disable initially until data is loaded
         self.filter_condition = QComboBox()
         self.filter_condition.addItems(["equals", "not equals", "greater than", "less than", "contains"])
+        self.filter_condition.setEnabled(False)  # Disable initially until data is loaded
         self.filter_value = QLineEdit()
         self.filter_value.setPlaceholderText("Value")
+        self.filter_value.setEnabled(False)  # Disable initially until data is loaded
         
         filter_layout_group.addWidget(self.filter_column)
         filter_layout_group.addWidget(self.filter_condition)
@@ -107,11 +117,14 @@ class PreprocessingPanel(QWidget):
         
         self.find_edit = QLineEdit()
         self.find_edit.setPlaceholderText("Find")
+        self.find_edit.setEnabled(False)  # Disable initially until data is loaded
         self.replace_edit = QLineEdit()
         self.replace_edit.setPlaceholderText("Replace")
+        self.replace_edit.setEnabled(False)  # Disable initially until data is loaded
         replace_layout_group.addWidget(self.find_edit)
         replace_layout_group.addWidget(self.replace_edit)
         self.replace_btn = QPushButton("Replace")
+        self.replace_btn.setEnabled(False)  # Disable initially until data is loaded
         replace_layout_group.addWidget(self.replace_btn)
         ribbon.addWidget(replace_group)
         
@@ -238,9 +251,15 @@ class PreprocessingPanel(QWidget):
         self.page_spin.valueChanged.connect(self.update_data_view)
         self.rows_per_page_combo.currentTextChanged.connect(self.update_data_view)
         
+        # Connect data view selection change to update data type dropdown
+        self.data_view.currentCellChanged.connect(lambda row, col, prev_row, prev_col: self.update_dtype_dropdown())
+        
         # Column operations
         self.rename_btn.clicked.connect(self.handle_rename_click)
         self.remove_btn.clicked.connect(self.handle_remove_click)
+        
+        # Connect data type change signal after initialization
+        # This prevents the signal from being triggered during initialization
         self.dtype_combo.currentTextChanged.connect(self.handle_type_change)
         
         # Transform operations
@@ -278,16 +297,15 @@ class PreprocessingPanel(QWidget):
         try:
             current_col = self.data_view.currentColumn()
             if current_col < 0:
-                QMessageBox.warning(self, "No Column Selected", 
-                                  "Please select a column before performing this operation.")
+                # No column is selected, return None without showing an error message
                 return None
             header_item = self.data_view.horizontalHeaderItem(current_col)
             if header_item is None:
-                QMessageBox.warning(self, "Invalid Column", 
-                                  "The selected column is not valid.")
+                # Invalid column, return None without showing an error message
                 return None
             return header_item.text()
         except Exception as e:
+            # Only show error message for unexpected exceptions
             QMessageBox.critical(self, "Error", 
                                f"Error getting column name: {str(e)}\n"
                                "Please make sure a valid column is selected.")
@@ -295,52 +313,132 @@ class PreprocessingPanel(QWidget):
 
     def handle_rename_click(self):
         """Handle rename button click with error checking."""
+        # First check if data is loaded
+        if self.data_manager.data is None:
+            # Silently return if no data is loaded - this prevents errors when initializing the UI
+            return
+            
+        # Only show warning if user explicitly tries to rename a column
         if not self.check_data_loaded():
             return
+            
         column_name = self.get_selected_column()
         if column_name:
             self.rename_column_dialog(column_name)
+        else:
+            QMessageBox.warning(self, "No Column Selected", 
+                              "Please select a column before performing this operation.")
 
     def handle_remove_click(self):
         """Handle remove button click with error checking."""
+        # First check if data is loaded
+        if self.data_manager.data is None:
+            # Silently return if no data is loaded - this prevents errors when initializing the UI
+            return
+            
+        # Only show warning if user explicitly tries to remove a column
         if not self.check_data_loaded():
             return
+            
         column_name = self.get_selected_column()
         if column_name:
             self.remove_column(column_name)
+        else:
+            QMessageBox.warning(self, "No Column Selected", 
+                              "Please select a column before performing this operation.")
 
     def handle_type_change(self, new_type):
         """Handle data type change with error checking."""
+        # If empty type is selected, just update the dropdown to match the current column
+        if not new_type:
+            self.update_dtype_dropdown()
+            return
+            
+        # Check if data has been loaded
+        if not self.data_loaded_flag:
+            # Data hasn't been loaded yet, silently return
+            return
+            
+        # First check if data is loaded
+        if self.data_manager.data is None:
+            # Silently return if no data is loaded - this prevents errors when initializing the UI
+            return
+            
+        # Check if a column is selected in the data view
+        current_col = self.data_view.currentColumn()
+        if current_col < 0:
+            # No column is selected, silently return
+            # This prevents errors when the dropdown is changed but no column is selected
+            return
+            
+        # Only show warning if user explicitly tries to change the type
         if not self.check_data_loaded():
             return
+            
         column_name = self.get_selected_column()
         if column_name:
+            # Get current data type to check if it's different
+            df = self.data_manager.data
+            current_dtype = str(df[column_name].dtype)
+            
+            # Map current dtype to our dropdown options
+            if 'int' in current_dtype and new_type == 'int64':
+                # Already the right type, no need to change
+                return
+            elif 'float' in current_dtype and new_type == 'float64':
+                # Already the right type, no need to change
+                return
+            elif 'datetime' in current_dtype and new_type == 'datetime':
+                # Already the right type, no need to change
+                return
+            elif 'bool' in current_dtype and new_type == 'boolean':
+                # Already the right type, no need to change
+                return
+            elif ('object' in current_dtype or 'string' in current_dtype) and new_type == 'string':
+                # Already the right type, no need to change
+                return
+                
+            # Apply the type change
             self.change_column_type(column_name, new_type)
 
     def handle_transform_click(self):
         """Handle transform button click with error checking."""
+        # First check if data is loaded
+        if self.data_manager.data is None:
+            # Silently return if no data is loaded - this prevents errors when initializing the UI
+            return
+            
+        # Only show warning if user explicitly tries to apply a transformation
         if not self.check_data_loaded():
             return
+            
         column_name = self.get_selected_column()
         if column_name:
             self.apply_transformation_to_column(column_name, self.transform_combo.currentText())
+        else:
+            QMessageBox.warning(self, "No Column Selected", 
+                              "Please select a column before performing this operation.")
 
     def handle_filter_click(self):
         """Handle filter button click with error checking."""
+        # First check if data is loaded
+        if self.data_manager.data is None:
+            # Silently return if no data is loaded - this prevents errors when initializing the UI
+            return
+            
+        # Only show warning if user explicitly tries to apply a filter
         if not self.check_data_loaded():
             return
-        if not self.filter_column.currentText():
-            QMessageBox.warning(self, "No Column Selected", 
-                              "Please select a column to filter.")
-            return
-        if not self.filter_value.text().strip():
-            QMessageBox.warning(self, "No Value", 
-                              "Please enter a value to filter by.")
-            return
+            
         self.apply_filter()
 
     def handle_replace_click(self):
         """Handle replace button click with error checking."""
+        # First check if data is loaded
+        if self.data_manager.data is None:
+            # Silently return if no data is loaded - this prevents errors when initializing the UI
+            return
+            
         if not self.check_data_loaded():
             return
         if not self.find_edit.text().strip():
@@ -379,11 +477,20 @@ class PreprocessingPanel(QWidget):
                 self.data_view.setItem(i, j, QTableWidgetItem(value))
                 
         self.data_view.resizeColumnsToContents()
+        
+        # Update the data type dropdown to reflect the currently selected column
+        self.update_dtype_dropdown()
 
     def show_context_menu(self, pos):
         """Show context menu for column operations."""
         column = self.data_view.horizontalHeader().logicalIndexAt(pos.x())
         if column >= 0:
+            # Select the column
+            self.data_view.selectColumn(column)
+            
+            # Update the data type dropdown
+            self.update_dtype_dropdown()
+            
             menu = QMenu(self)
             
             # Get column name
@@ -470,8 +577,18 @@ class PreprocessingPanel(QWidget):
             return
             
         column = self.filter_column.currentText()
+        if not column:
+            QMessageBox.warning(self, "No Column Selected", 
+                              "Please select a column to filter.")
+            return
+            
         condition = self.filter_condition.currentText()
         value = self.filter_value.text()
+        
+        if not value.strip():
+            QMessageBox.warning(self, "No Value", 
+                              "Please enter a value to filter by.")
+            return
         
         try:
             df = self.data_manager.data.copy()
@@ -479,7 +596,12 @@ class PreprocessingPanel(QWidget):
             # Convert value based on column type
             col_type = df[column].dtype
             if pd.api.types.is_numeric_dtype(col_type):
-                value = float(value)
+                try:
+                    value = float(value)
+                except ValueError:
+                    QMessageBox.warning(self, "Invalid Value", 
+                                      f"The value '{value}' cannot be converted to a number for column '{column}'.")
+                    return
             
             # Apply filter
             if condition == "equals":
@@ -567,17 +689,28 @@ class PreprocessingPanel(QWidget):
 
     def on_data_loaded(self, df):
         """Handle when new data is loaded."""
+        # Set the data loaded flag
+        self.data_loaded_flag = True
+        
         # Update column selectors
         self.filter_column.clear()
         self.filter_column.addItems(df.columns)
+        self.filter_column.setEnabled(True)  # Enable now that data is loaded
+        self.filter_condition.setEnabled(True)  # Enable now that data is loaded
+        self.filter_value.setEnabled(True)  # Enable now that data is loaded
         
         self.outlier_column_combo.clear()
         numeric_columns = df.select_dtypes(include=[np.number]).columns
         self.outlier_column_combo.addItems(numeric_columns)
         
-        # Update data type combo
+        # Update data type combo - temporarily disconnect signal to prevent triggering handle_type_change
+        self.dtype_combo.blockSignals(True)
         self.dtype_combo.clear()
+        self.dtype_combo.addItem("")  # Empty item for when no column is selected
         self.dtype_combo.addItems(["int64", "float64", "string", "datetime", "boolean"])
+        self.dtype_combo.setCurrentIndex(0)  # Set to empty initially
+        self.dtype_combo.setEnabled(True)  # Enable the dropdown now that data is loaded
+        self.dtype_combo.blockSignals(False)
         
         # Reset pagination
         self.page_spin.setValue(1)
@@ -586,6 +719,19 @@ class PreprocessingPanel(QWidget):
         self.update_data_view()
         if self.current_outliers is not None:
             self.update_outlier_view()
+        
+        # Enable transform operations
+        self.transform_combo.setEnabled(True)
+        self.apply_transform_btn.setEnabled(True)
+        
+        # Enable column operations
+        self.rename_btn.setEnabled(True)
+        self.remove_btn.setEnabled(True)
+        
+        # Enable replace operations
+        self.find_edit.setEnabled(True)
+        self.replace_edit.setEnabled(True)
+        self.replace_btn.setEnabled(True)
 
     def update_missing_values_info(self):
         """Update the missing values information table."""
@@ -765,11 +911,16 @@ class PreprocessingPanel(QWidget):
             else:
                 df[column_name] = df[column_name].astype(new_type)
             
+            self.save_state()
             self.data_manager._data = df
             self.data_manager.data_loaded.emit(df)
             
             QMessageBox.information(self, "Success", 
                                   f"Column '{column_name}' type changed to {new_type}")
+                                  
+            # Update the dropdown to reflect the new type
+            self.update_dtype_dropdown()
+            
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error changing data type: {str(e)}")
 
@@ -1026,4 +1177,42 @@ class PreprocessingPanel(QWidget):
             if not progress.wasCanceled():
                 QMessageBox.critical(self, "Error", f"Error handling outliers: {str(e)}")
         finally:
-            progress.close() 
+            progress.close()
+
+    def update_dtype_dropdown(self):
+        """Update the data type dropdown based on the selected column."""
+        if not self.data_loaded_flag or self.data_manager.data is None:
+            return
+            
+        column_name = self.get_selected_column()
+        if column_name is None:
+            # No column selected, set to empty item
+            self.dtype_combo.blockSignals(True)
+            self.dtype_combo.setCurrentIndex(0)  # Select empty item
+            self.dtype_combo.blockSignals(False)
+            return
+            
+        # Get the data type of the selected column
+        df = self.data_manager.data
+        dtype = str(df[column_name].dtype)
+        
+        # Map pandas dtype to our dropdown options
+        if 'int' in dtype:
+            dtype_str = 'int64'
+        elif 'float' in dtype:
+            dtype_str = 'float64'
+        elif 'datetime' in dtype:
+            dtype_str = 'datetime'
+        elif 'bool' in dtype:
+            dtype_str = 'boolean'
+        else:
+            dtype_str = 'string'
+            
+        # Set the dropdown to the current data type
+        self.dtype_combo.blockSignals(True)
+        index = self.dtype_combo.findText(dtype_str)
+        if index >= 0:
+            self.dtype_combo.setCurrentIndex(index)
+        else:
+            self.dtype_combo.setCurrentIndex(0)  # Default to empty if not found
+        self.dtype_combo.blockSignals(False) 
