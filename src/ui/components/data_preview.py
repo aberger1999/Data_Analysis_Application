@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QComboBox, QLineEdit, QGroupBox, QGridLayout
 )
 from PyQt6.QtCore import Qt, QTimer
+import pandas as pd
 
 class DataPreviewPanel(QWidget):
     """Panel for previewing loaded data."""
@@ -100,6 +101,8 @@ class DataPreviewPanel(QWidget):
         # Data table
         self.table = QTableWidget()
         self.table.setAlternatingRowColors(True)
+        # Make cells not editable
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         layout.addWidget(self.table)
         
     def setup_connections(self):
@@ -113,6 +116,9 @@ class DataPreviewPanel(QWidget):
         
     def on_data_loaded(self, df):
         """Handle when new data is loaded."""
+        # Always use the data from data_manager to ensure we have the latest version
+        df = self.data_manager.data
+        
         if df is None:
             self.info_label.setText("No data loaded")
             self.table.clear()
@@ -124,7 +130,13 @@ class DataPreviewPanel(QWidget):
         self.filter_column_combo.clear()
         self.filter_column_combo.addItems(df.columns)
         
-        self.filtered_data = df  # Reset filtered data
+        # Reset to page 1
+        self.current_page = 0
+        
+        # Reset filtered data to the full dataset
+        self.filtered_data = df.copy()  # Make a copy to ensure we're working with the latest data
+        
+        # Update the table view with the latest data
         self.update_table_view()
         
     def apply_filter(self):
@@ -132,7 +144,9 @@ class DataPreviewPanel(QWidget):
         if self.data_manager.data is None:
             return
             
-        df = self.data_manager.data
+        # Always use the latest data from data_manager
+        df = self.data_manager.data.copy()
+        
         column = self.filter_column_combo.currentText()
         condition = self.filter_condition_combo.currentText()
         value = self.filter_value_edit.text()
@@ -168,7 +182,8 @@ class DataPreviewPanel(QWidget):
         
     def clear_filter(self):
         """Clear the current filter."""
-        self.filtered_data = self.data_manager.data
+        # Always use the latest data from data_manager
+        self.filtered_data = self.data_manager.data.copy() if self.data_manager.data is not None else None
         self.filter_value_edit.clear()
         self.current_page = 0
         self.update_table_view()
@@ -236,6 +251,56 @@ class DataPreviewPanel(QWidget):
             self.current_page = page_number - 1
             self.update_current_page()
         
+    def on_cell_changed(self, item):
+        """Handle when a cell value is changed by the user."""
+        if self.filtered_data is None or self.data_manager.data is None:
+            return
+            
+        # Get the row and column indices
+        row_idx = item.row()
+        col_idx = item.column()
+        
+        # Calculate the actual row index in the filtered data
+        actual_row_idx = self.current_page * self.MAX_ROWS_PER_PAGE + row_idx
+        
+        # Get the column name
+        column_name = self.filtered_data.columns[col_idx]
+        
+        # Get the new value
+        new_value = item.text()
+        
+        try:
+            # Convert the value to the appropriate type based on the column's data type
+            original_dtype = self.filtered_data[column_name].dtype
+            if pd.api.types.is_numeric_dtype(original_dtype):
+                if pd.api.types.is_integer_dtype(original_dtype):
+                    new_value = int(new_value)
+                else:
+                    new_value = float(new_value)
+            elif pd.api.types.is_bool_dtype(original_dtype):
+                new_value = new_value.lower() in ['true', 'yes', '1', 't', 'y']
+                
+            # Save current state for undo functionality
+            if hasattr(self.data_manager, 'save_state'):
+                self.data_manager.save_state()
+                
+            # Update the value in the filtered data
+            self.filtered_data.iloc[actual_row_idx, col_idx] = new_value
+            
+            # Update the main dataframe in the data manager
+            # We need to find the corresponding row in the original dataframe
+            original_index = self.filtered_data.index[actual_row_idx]
+            self.data_manager._data.loc[original_index, column_name] = new_value
+            
+            # Emit the data_loaded signal to update all panels
+            self.data_manager.data_loaded.emit(self.data_manager._data)
+            
+        except Exception as e:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Edit Error", f"Error updating cell value: {str(e)}")
+            # Revert to the original value
+            self.update_current_page()
+    
     def update_current_page(self):
         """Update the table with the current page of data."""
         if self.filtered_data is None:
@@ -246,7 +311,9 @@ class DataPreviewPanel(QWidget):
         
         # Update table
         self.table.setRowCount(end_idx - start_idx)
-        self.table.setVerticalHeaderLabels([str(i) for i in range(start_idx, end_idx)])
+        
+        # Set vertical header labels to start from 1 instead of 0
+        self.table.setVerticalHeaderLabels([str(i + 1) for i in range(start_idx, end_idx)])
         
         # Disable table updates for better performance
         self.table.setUpdatesEnabled(False)
@@ -257,7 +324,6 @@ class DataPreviewPanel(QWidget):
                 for col_idx in range(self.filtered_data.shape[1]):
                     value = str(self.filtered_data.iloc[df_idx, col_idx])
                     item = QTableWidgetItem(value)
-                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Make read-only
                     self.table.setItem(row_idx, col_idx, item)
                     
             # Adjust column widths if this is the first page

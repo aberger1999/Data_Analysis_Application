@@ -113,29 +113,141 @@ class PreprocessingPanel(QWidget):
         
         # Replace Group
         replace_group = QGroupBox("Replace")
-        replace_layout_group = QHBoxLayout(replace_group)
+        replace_layout_group = QVBoxLayout(replace_group)
         
+        # Find and replace inputs
+        input_layout = QHBoxLayout()
         self.find_edit = QLineEdit()
         self.find_edit.setPlaceholderText("Find")
         self.find_edit.setEnabled(False)  # Disable initially until data is loaded
         self.replace_edit = QLineEdit()
         self.replace_edit.setPlaceholderText("Replace")
         self.replace_edit.setEnabled(False)  # Disable initially until data is loaded
-        replace_layout_group.addWidget(self.find_edit)
-        replace_layout_group.addWidget(self.replace_edit)
+        input_layout.addWidget(self.find_edit)
+        input_layout.addWidget(self.replace_edit)
+        replace_layout_group.addLayout(input_layout)
+        
+        # Options and button
+        options_layout = QHBoxLayout()
+        self.exact_match_check = QCheckBox("Exact Match")
+        self.exact_match_check.setEnabled(False)  # Disable initially until data is loaded
+        options_layout.addWidget(self.exact_match_check)
+        
         self.replace_btn = QPushButton("Replace")
         self.replace_btn.setEnabled(False)  # Disable initially until data is loaded
-        replace_layout_group.addWidget(self.replace_btn)
+        options_layout.addWidget(self.replace_btn)
+        replace_layout_group.addLayout(options_layout)
+        
         ribbon.addWidget(replace_group)
         
         transform_layout.addLayout(ribbon)
+        
+        # Add second row of tools
+        second_row = QHBoxLayout()
+        
+        # Rounding Tool
+        rounding_group = QGroupBox("Rounding")
+        rounding_layout = QHBoxLayout(rounding_group)
+        
+        self.rounding_column = QComboBox()
+        self.rounding_column.setEnabled(False)  # Disable initially until data is loaded
+        # Set a fixed width for the combo box
+        self.rounding_column.setFixedWidth(120)
+        
+        self.rounding_digits = QSpinBox()
+        self.rounding_digits.setRange(0, 10)
+        self.rounding_digits.setValue(2)
+        self.rounding_digits.setEnabled(False)  # Disable initially until data is loaded
+        
+        self.apply_rounding_btn = QPushButton("Round")
+        self.apply_rounding_btn.setEnabled(False)  # Disable initially until data is loaded
+        
+        rounding_layout.addWidget(QLabel("Column:"))
+        rounding_layout.addWidget(self.rounding_column)
+        rounding_layout.addWidget(QLabel("Digits:"))
+        rounding_layout.addWidget(self.rounding_digits)
+        rounding_layout.addWidget(self.apply_rounding_btn)
+        
+        second_row.addWidget(rounding_group)
+        
+        # Split Column Tool
+        split_group = QGroupBox("Split Column")
+        split_layout = QHBoxLayout(split_group)
+        
+        self.split_column = QComboBox()
+        self.split_column.setEnabled(False)  # Disable initially until data is loaded
+        # Set a fixed width for the delimiter input
+        self.split_column.setFixedWidth(120)
+        
+        self.split_delimiter = QLineEdit()
+        self.split_delimiter.setPlaceholderText("Delimiter")
+        self.split_delimiter.setText(",")
+        self.split_delimiter.setEnabled(False)  # Disable initially until data is loaded
+        
+        self.apply_split_btn = QPushButton("Split")
+        self.apply_split_btn.setEnabled(False)  # Disable initially until data is loaded
+        
+        split_layout.addWidget(QLabel("Column:"))
+        split_layout.addWidget(self.split_column)
+        split_layout.addWidget(QLabel("Delimiter:"))
+        split_layout.addWidget(self.split_delimiter)
+        split_layout.addWidget(self.apply_split_btn)
+        
+        second_row.addWidget(split_group)
+        
+        transform_layout.addLayout(second_row)
+        
+        # Add third row of tools
+        third_row = QHBoxLayout()
+        
+        # Unpivot Column Tool
+        unpivot_group = QGroupBox("Unpivot Columns")
+        unpivot_layout = QHBoxLayout(unpivot_group)
+        
+        self.unpivot_id_column = QComboBox()
+        self.unpivot_id_column.setEnabled(False)  # Disable initially until data is loaded
+        
+        self.apply_unpivot_btn = QPushButton("Unpivot")
+        self.apply_unpivot_btn.setEnabled(False)  # Disable initially until data is loaded
+        
+        unpivot_layout.addWidget(QLabel("ID Column:"))
+        unpivot_layout.addWidget(self.unpivot_id_column)
+        unpivot_layout.addWidget(self.apply_unpivot_btn)
+        
+        third_row.addWidget(unpivot_group)
+        
+        # Group By Tool
+        groupby_group = QGroupBox("Group By")
+        groupby_layout = QHBoxLayout(groupby_group)
+        
+        self.groupby_column = QComboBox()
+        self.groupby_column.setEnabled(False)  # Disable initially until data is loaded
+        
+        self.groupby_agg = QComboBox()
+        self.groupby_agg.addItems(["Count", "Sum", "Mean", "Min", "Max"])
+        self.groupby_agg.setEnabled(False)  # Disable initially until data is loaded
+        
+        self.apply_groupby_btn = QPushButton("Group")
+        self.apply_groupby_btn.setEnabled(False)  # Disable initially until data is loaded
+        
+        groupby_layout.addWidget(QLabel("Column:"))
+        groupby_layout.addWidget(self.groupby_column)
+        groupby_layout.addWidget(QLabel("Aggregation:"))
+        groupby_layout.addWidget(self.groupby_agg)
+        groupby_layout.addWidget(self.apply_groupby_btn)
+        
+        third_row.addWidget(groupby_group)
+        
+        transform_layout.addLayout(third_row)
         
         # Create main data view for transform tab
         self.data_view = QTableWidget()
         self.data_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.data_view.customContextMenuRequested.connect(self.show_context_menu)
+        # Make cells not editable
+        self.data_view.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         
-        # Add pagination controls
+        # Add pagination controls and Apply Changes button
         pagination = QHBoxLayout()
         self.page_label = QLabel("Page:")
         self.page_spin = QSpinBox()
@@ -149,6 +261,12 @@ class PreprocessingPanel(QWidget):
         pagination.addWidget(self.rows_per_page_label)
         pagination.addWidget(self.rows_per_page_combo)
         pagination.addStretch()
+        
+        # Add Apply Changes button
+        self.apply_changes_btn = QPushButton("Apply Changes to Main View")
+        self.apply_changes_btn.setEnabled(False)  # Disable initially until data is loaded
+        self.apply_changes_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+        pagination.addWidget(self.apply_changes_btn)
         
         transform_layout.addWidget(self.data_view)
         transform_layout.addLayout(pagination)
@@ -206,6 +324,8 @@ class PreprocessingPanel(QWidget):
         self.outlier_table = QTableWidget()
         self.outlier_table.setColumnCount(2)
         self.outlier_table.setHorizontalHeaderLabels(["Value", "Is Outlier"])
+        # Make outlier table cells not editable
+        self.outlier_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         view_layout.addWidget(self.outlier_table)
         
         preprocess_layout.addWidget(view_group)
@@ -270,6 +390,15 @@ class PreprocessingPanel(QWidget):
         
         # Replace operations
         self.replace_btn.clicked.connect(self.handle_replace_click)
+        
+        # New tool connections
+        self.apply_rounding_btn.clicked.connect(self.handle_rounding_click)
+        self.apply_split_btn.clicked.connect(self.handle_split_click)
+        self.apply_unpivot_btn.clicked.connect(self.handle_unpivot_click)
+        self.apply_groupby_btn.clicked.connect(self.handle_groupby_click)
+        
+        # Apply Changes button
+        self.apply_changes_btn.clicked.connect(self.apply_changes_to_main_view)
         
         # Outlier detection
         self.detect_outliers_btn.clicked.connect(lambda: self.detect_outliers(True))
@@ -402,50 +531,242 @@ class PreprocessingPanel(QWidget):
             self.change_column_type(column_name, new_type)
 
     def handle_transform_click(self):
-        """Handle transform button click with error checking."""
-        # First check if data is loaded
-        if self.data_manager.data is None:
-            # Silently return if no data is loaded - this prevents errors when initializing the UI
-            return
-            
-        # Only show warning if user explicitly tries to apply a transformation
+        """Handle transform button click."""
         if not self.check_data_loaded():
             return
             
-        column_name = self.get_selected_column()
-        if column_name:
-            self.apply_transformation_to_column(column_name, self.transform_combo.currentText())
-        else:
+        column = self.get_selected_column()
+        if column is None:
             QMessageBox.warning(self, "No Column Selected", 
-                              "Please select a column before performing this operation.")
+                              "Please select a column to transform.")
+            return
+            
+        transform = self.transform_combo.currentText()
+        
+        progress = QProgressDialog(f"Applying {transform}...", "Cancel", 0, 100, self)
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.show()
+        
+        try:
+            # Save current state for undo functionality
+            self.save_state()
+            
+            df = self.data_manager.data.copy()
+            
+            # Get the data
+            data = df[column]
+            
+            progress.setValue(20)
+            
+            # Apply transformation
+            if transform == "Standard Scale":
+                scaler = StandardScaler()
+                df[column] = scaler.fit_transform(data.values.reshape(-1, 1))
+            elif transform == "Min-Max Scale":
+                scaler = MinMaxScaler()
+                df[column] = scaler.fit_transform(data.values.reshape(-1, 1))
+            elif transform == "Robust Scale":
+                scaler = RobustScaler()
+                df[column] = scaler.fit_transform(data.values.reshape(-1, 1))
+            elif transform == "Log Transform":
+                # Handle negative or zero values
+                min_val = data.min()
+                if min_val <= 0:
+                    offset = abs(min_val) + 1
+                    df[column] = np.log(data + offset)
+                else:
+                    df[column] = np.log(data)
+            elif transform == "Square Root":
+                # Handle negative values
+                min_val = data.min()
+                if min_val < 0:
+                    offset = abs(min_val)
+                    df[column] = np.sqrt(data + offset)
+                else:
+                    df[column] = np.sqrt(data)
+            elif transform == "Box-Cox":
+                # Box-Cox requires positive values
+                min_val = data.min()
+                if min_val <= 0:
+                    offset = abs(min_val) + 1
+                    transformed, lambda_val = stats.boxcox(data + offset)
+                else:
+                    transformed, lambda_val = stats.boxcox(data)
+                df[column] = transformed
+            
+            progress.setValue(80)
+            
+            # Update the data manager with the new dataframe
+            self.data_manager._data = df
+            
+            # Update only the local view without emitting data_loaded signal
+            self.update_data_view()
+            
+            progress.setValue(100)
+            QMessageBox.information(self, "Success", 
+                                  "Transformation applied successfully! Click 'Apply Changes to Main View' to update the main data preview.")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error applying transformation: {str(e)}")
+        finally:
+            progress.close()
 
     def handle_filter_click(self):
-        """Handle filter button click with error checking."""
-        # First check if data is loaded
-        if self.data_manager.data is None:
-            # Silently return if no data is loaded - this prevents errors when initializing the UI
-            return
-            
-        # Only show warning if user explicitly tries to apply a filter
+        """Handle filter button click."""
         if not self.check_data_loaded():
             return
             
-        self.apply_filter()
+        column = self.filter_column.currentText()
+        condition = self.filter_condition.currentText()
+        value = self.filter_value.text()
+        
+        if not column or not value:
+            QMessageBox.warning(self, "Missing Information", 
+                              "Please select a column and enter a value.")
+            return
+            
+        try:
+            # Save current state for undo functionality
+            self.save_state()
+            
+            df = self.data_manager.data.copy()
+            
+            # Apply filter based on condition
+            if condition == "equals":
+                try:
+                    # Try to convert value to numeric if column is numeric
+                    if pd.api.types.is_numeric_dtype(df[column]):
+                        df = df[df[column] == float(value)]
+                    else:
+                        df = df[df[column] == value]
+                except ValueError:
+                    # If conversion fails, use string comparison
+                    df = df[df[column] == value]
+            elif condition == "not equals":
+                try:
+                    if pd.api.types.is_numeric_dtype(df[column]):
+                        df = df[df[column] != float(value)]
+                    else:
+                        df = df[df[column] != value]
+                except ValueError:
+                    df = df[df[column] != value]
+            elif condition == "greater than":
+                try:
+                    df = df[df[column] > float(value)]
+                except ValueError:
+                    QMessageBox.warning(self, "Invalid Value", 
+                                      "Please enter a numeric value for 'greater than' comparison.")
+                    return
+            elif condition == "less than":
+                try:
+                    df = df[df[column] < float(value)]
+                except ValueError:
+                    QMessageBox.warning(self, "Invalid Value", 
+                                      "Please enter a numeric value for 'less than' comparison.")
+                    return
+            elif condition == "contains":
+                df = df[df[column].astype(str).str.contains(value, case=False, na=False)]
+            
+            if len(df) == 0:
+                QMessageBox.warning(self, "No Data", 
+                                  "The filter returned no results. Please try a different filter.")
+                return
+                
+            # Update the data manager with the new dataframe
+            self.data_manager._data = df
+            
+            # Update only the local view without emitting data_loaded signal
+            self.update_data_view()
+            
+            QMessageBox.information(self, "Success", 
+                                  "Filter applied successfully! Click 'Apply Changes to Main View' to update the main data preview.")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error applying filter: {str(e)}")
 
     def handle_replace_click(self):
-        """Handle replace button click with error checking."""
-        # First check if data is loaded
-        if self.data_manager.data is None:
-            # Silently return if no data is loaded - this prevents errors when initializing the UI
-            return
-            
+        """Handle replace button click."""
         if not self.check_data_loaded():
             return
-        if not self.find_edit.text().strip():
-            QMessageBox.warning(self, "No Search Term", 
+            
+        find_value = self.find_edit.text()
+        replace_value = self.replace_edit.text()
+        exact_match = self.exact_match_check.isChecked()
+        
+        if not find_value:
+            QMessageBox.warning(self, "Missing Information", 
                               "Please enter a value to find.")
             return
-        self.find_and_replace()
+            
+        try:
+            # Save current state for undo functionality
+            self.save_state()
+            
+            df = self.data_manager.data.copy()
+            
+            # Get selected column if any
+            column = self.get_selected_column()
+            
+            # Replace in selected column or all columns
+            if column:
+                # Try to convert values based on column type
+                if pd.api.types.is_numeric_dtype(df[column]):
+                    try:
+                        find_numeric = float(find_value)
+                        replace_numeric = float(replace_value) if replace_value else np.nan
+                        
+                        if exact_match:
+                            # Only replace exact matches
+                            mask = df[column] == find_numeric
+                            df.loc[mask, column] = replace_numeric
+                        else:
+                            # Use pandas replace which can handle partial matches
+                            df[column] = df[column].replace(find_numeric, replace_numeric)
+                    except ValueError:
+                        QMessageBox.warning(self, "Type Mismatch", 
+                                          "Cannot convert values to match column type.")
+                        return
+                else:
+                    if exact_match:
+                        # Only replace exact matches for string columns
+                        mask = df[column].astype(str) == find_value
+                        df.loc[mask, column] = replace_value
+                    else:
+                        # Use pandas replace which can handle partial matches
+                        df[column] = df[column].replace(find_value, replace_value)
+            else:
+                # Replace in all columns
+                if exact_match:
+                    # For exact match, we need to iterate through columns
+                    for col in df.columns:
+                        if pd.api.types.is_numeric_dtype(df[col]):
+                            try:
+                                find_numeric = float(find_value)
+                                replace_numeric = float(replace_value) if replace_value else np.nan
+                                mask = df[col] == find_numeric
+                                df.loc[mask, col] = replace_numeric
+                            except ValueError:
+                                # Skip columns where conversion fails
+                                continue
+                        else:
+                            # For non-numeric columns, compare as strings
+                            mask = df[col].astype(str) == find_value
+                            df.loc[mask, col] = replace_value
+                else:
+                    # Use pandas replace for non-exact matches
+                    df = df.replace(find_value, replace_value)
+                
+            # Update the data manager with the new dataframe
+            self.data_manager._data = df
+            
+            # Update only the local view without emitting data_loaded signal
+            self.update_data_view()
+            
+            QMessageBox.information(self, "Success", 
+                                  "Replace operation completed successfully! Click 'Apply Changes to Main View' to update the main data preview.")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error replacing values: {str(e)}")
 
     def update_data_view(self):
         """Update the main data view with current page of data."""
@@ -470,6 +791,9 @@ class PreprocessingPanel(QWidget):
         self.data_view.setRowCount(len(page_data))
         self.data_view.setColumnCount(len(df.columns))
         self.data_view.setHorizontalHeaderLabels(df.columns)
+        
+        # Set vertical header labels to start from 1 instead of 0
+        self.data_view.setVerticalHeaderLabels([str(i + 1) for i in range(start_idx, end_idx)])
         
         for i in range(len(page_data)):
             for j in range(len(df.columns)):
@@ -526,7 +850,7 @@ class PreprocessingPanel(QWidget):
                 elif action.parent() == change_type_menu:
                     self.change_column_type(column_name, action.text())
                 elif action.parent() == transform_menu:
-                    self.apply_transformation_to_column(column_name, action.text())
+                    self.handle_transform_click()
                 elif action.parent() == filter_menu:
                     self.show_filter_dialog(column_name, action.text())
 
@@ -552,8 +876,15 @@ class PreprocessingPanel(QWidget):
             df = df.rename(columns={old_name: new_name})
             
             self.save_state()
+            
+            # Update the data manager with the new dataframe
             self.data_manager._data = df
-            self.data_manager.data_loaded.emit(df)
+            
+            # Update only the local view without emitting data_loaded signal
+            self.update_data_view()
+            
+            QMessageBox.information(self, "Success", 
+                                  f"Column '{old_name}' renamed to '{new_name}' successfully! Click 'Apply Changes to Main View' to update the main data preview.")
             
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error renaming column: {str(e)}")
@@ -565,67 +896,18 @@ class PreprocessingPanel(QWidget):
             df = df.drop(columns=[column_name])
             
             self.save_state()
+            
+            # Update the data manager with the new dataframe
             self.data_manager._data = df
-            self.data_manager.data_loaded.emit(df)
+            
+            # Update only the local view without emitting data_loaded signal
+            self.update_data_view()
+            
+            QMessageBox.information(self, "Success", 
+                                  f"Column '{column_name}' removed successfully! Click 'Apply Changes to Main View' to update the main data preview.")
             
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error removing column: {str(e)}")
-
-    def apply_filter(self):
-        """Apply filter to the selected column."""
-        if self.data_manager.data is None:
-            return
-            
-        column = self.filter_column.currentText()
-        if not column:
-            QMessageBox.warning(self, "No Column Selected", 
-                              "Please select a column to filter.")
-            return
-            
-        condition = self.filter_condition.currentText()
-        value = self.filter_value.text()
-        
-        if not value.strip():
-            QMessageBox.warning(self, "No Value", 
-                              "Please enter a value to filter by.")
-            return
-        
-        try:
-            df = self.data_manager.data.copy()
-            
-            # Convert value based on column type
-            col_type = df[column].dtype
-            if pd.api.types.is_numeric_dtype(col_type):
-                try:
-                    value = float(value)
-                except ValueError:
-                    QMessageBox.warning(self, "Invalid Value", 
-                                      f"The value '{value}' cannot be converted to a number for column '{column}'.")
-                    return
-            
-            # Apply filter
-            if condition == "equals":
-                mask = df[column] == value
-            elif condition == "not equals":
-                mask = df[column] != value
-            elif condition == "greater than":
-                mask = df[column] > value
-            elif condition == "less than":
-                mask = df[column] < value
-            elif condition == "contains":
-                mask = df[column].astype(str).str.contains(str(value), case=False, na=False)
-            
-            filtered_df = df[mask]
-            
-            self.save_state()
-            self.data_manager._data = filtered_df
-            self.data_manager.data_loaded.emit(filtered_df)
-            
-            QMessageBox.information(self, "Success", 
-                                  f"Filter applied. {len(filtered_df)} rows remaining.")
-            
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error applying filter: {str(e)}")
 
     def show_filter_dialog(self, column_name, condition):
         """Show dialog for filter value input."""
@@ -639,53 +921,7 @@ class PreprocessingPanel(QWidget):
             self.filter_column.setCurrentText(column_name)
             self.filter_condition.setCurrentText(condition)
             self.filter_value.setText(value)
-            self.apply_filter()
-
-    def apply_transformation_to_column(self, column_name, transform_type):
-        """Apply transformation to a single column."""
-        try:
-            df = self.data_manager.data.copy()
-            
-            if transform_type == "Standard Scale":
-                scaler = StandardScaler()
-                df[column_name] = scaler.fit_transform(df[[column_name]])
-            elif transform_type == "Min-Max Scale":
-                scaler = MinMaxScaler()
-                df[column_name] = scaler.fit_transform(df[[column_name]])
-            elif transform_type == "Robust Scale":
-                scaler = RobustScaler()
-                df[column_name] = scaler.fit_transform(df[[column_name]])
-            elif transform_type == "Log Transform":
-                if (df[column_name] <= 0).any():
-                    QMessageBox.warning(self, "Warning",
-                                     "Column contains non-positive values. "
-                                     "Log transform requires positive values.")
-                    return
-                df[column_name] = np.log(df[column_name])
-            elif transform_type == "Square Root":
-                if (df[column_name] < 0).any():
-                    QMessageBox.warning(self, "Warning",
-                                     "Column contains negative values. "
-                                     "Square root transform requires non-negative values.")
-                    return
-                df[column_name] = np.sqrt(df[column_name])
-            elif transform_type == "Box-Cox":
-                if (df[column_name] <= 0).any():
-                    QMessageBox.warning(self, "Warning",
-                                     "Column contains non-positive values. "
-                                     "Box-Cox transform requires positive values.")
-                    return
-                df[column_name] = stats.boxcox(df[column_name])[0]
-            
-            self.save_state()
-            self.data_manager._data = df
-            self.data_manager.data_loaded.emit(df)
-            
-            QMessageBox.information(self, "Success", 
-                                  f"Transformation '{transform_type}' applied to '{column_name}'")
-            
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error applying transformation: {str(e)}")
+            self.handle_filter_click()
 
     def on_data_loaded(self, df):
         """Handle when new data is loaded."""
@@ -698,6 +934,31 @@ class PreprocessingPanel(QWidget):
         self.filter_column.setEnabled(True)  # Enable now that data is loaded
         self.filter_condition.setEnabled(True)  # Enable now that data is loaded
         self.filter_value.setEnabled(True)  # Enable now that data is loaded
+        
+        # Update column selectors for new tools
+        self.rounding_column.clear()
+        self.rounding_column.addItems(df.select_dtypes(include=[np.number]).columns)
+        self.rounding_column.setEnabled(True)
+        self.rounding_digits.setEnabled(True)
+        self.apply_rounding_btn.setEnabled(True)
+        
+        self.split_column.clear()
+        # Use all columns instead of just object/string types
+        self.split_column.addItems(df.columns)
+        self.split_column.setEnabled(True)
+        self.split_delimiter.setEnabled(True)
+        self.apply_split_btn.setEnabled(True)
+        
+        self.unpivot_id_column.clear()
+        self.unpivot_id_column.addItems(df.columns)
+        self.unpivot_id_column.setEnabled(True)
+        self.apply_unpivot_btn.setEnabled(True)
+        
+        self.groupby_column.clear()
+        self.groupby_column.addItems(df.columns)
+        self.groupby_column.setEnabled(True)
+        self.groupby_agg.setEnabled(True)
+        self.apply_groupby_btn.setEnabled(True)
         
         self.outlier_column_combo.clear()
         numeric_columns = df.select_dtypes(include=[np.number]).columns
@@ -732,6 +993,13 @@ class PreprocessingPanel(QWidget):
         self.find_edit.setEnabled(True)
         self.replace_edit.setEnabled(True)
         self.replace_btn.setEnabled(True)
+        self.exact_match_check.setEnabled(True)
+        
+        # Enable Apply Changes button
+        self.apply_changes_btn.setEnabled(True)
+        
+        # Update undo/redo buttons state
+        self.update_undo_redo_buttons()
 
     def update_missing_values_info(self):
         """Update the missing values information table."""
@@ -823,40 +1091,27 @@ class PreprocessingPanel(QWidget):
     def save_state(self):
         """Save current state to history."""
         if self.data_manager.data is not None:
-            self.history.append(self.data_manager.data.copy())
-            if len(self.history) > self.max_history:
-                self.history.pop(0)
-            self.redo_stack.clear()  # Clear redo stack when new action is performed
+            self.data_manager.save_state()
             self.update_undo_redo_buttons()
             
     def update_undo_redo_buttons(self):
         """Update the enabled state of undo/redo buttons."""
-        self.undo_btn.setEnabled(len(self.history) > 0)
-        self.redo_btn.setEnabled(len(self.redo_stack) > 0)
+        self.undo_btn.setEnabled(len(self.data_manager.history) > 0)
+        self.redo_btn.setEnabled(len(self.data_manager.redo_stack) > 0)
         
     def undo(self):
         """Undo the last operation."""
-        if self.history:
-            # Save current state to redo stack
-            if self.data_manager.data is not None:
-                self.redo_stack.append(self.data_manager.data.copy())
-            # Restore previous state
-            previous_state = self.history.pop()
-            self.data_manager._data = previous_state
-            self.data_manager.data_loaded.emit(previous_state)
-            self.update_undo_redo_buttons()
-            
+        # Use the DataManager's undo method
+        self.data_manager.undo()
+        # Update undo/redo buttons
+        self.update_undo_redo_buttons()
+        
     def redo(self):
         """Redo the last undone operation."""
-        if self.redo_stack:
-            # Save current state to history
-            if self.data_manager.data is not None:
-                self.history.append(self.data_manager.data.copy())
-            # Restore redo state
-            redo_state = self.redo_stack.pop()
-            self.data_manager._data = redo_state
-            self.data_manager.data_loaded.emit(redo_state)
-            self.update_undo_redo_buttons()
+        # Use the DataManager's redo method
+        self.data_manager.redo()
+        # Update undo/redo buttons
+        self.update_undo_redo_buttons()
 
     def apply_operation(self, operation_func):
         """Apply an operation with proper state management."""
@@ -912,11 +1167,15 @@ class PreprocessingPanel(QWidget):
                 df[column_name] = df[column_name].astype(new_type)
             
             self.save_state()
+            
+            # Update the data manager with the new dataframe
             self.data_manager._data = df
-            self.data_manager.data_loaded.emit(df)
+            
+            # Update only the local view without emitting data_loaded signal
+            self.update_data_view()
             
             QMessageBox.information(self, "Success", 
-                                  f"Column '{column_name}' type changed to {new_type}")
+                                  f"Column '{column_name}' type changed to {new_type} successfully! Click 'Apply Changes to Main View' to update the main data preview.")
                                   
             # Update the dropdown to reflect the new type
             self.update_dtype_dropdown()
@@ -1106,6 +1365,9 @@ class PreprocessingPanel(QWidget):
         progress.show()
         
         try:
+            # Save current state for undo functionality
+            self.save_state()
+            
             df = self.data_manager.data.copy()
             column = self.outlier_column_combo.currentText()
             method = self.handling_method_combo.currentText()
@@ -1115,40 +1377,51 @@ class PreprocessingPanel(QWidget):
             
             progress.setValue(20)
             
-            # Create a DataFrame for the current view
-            df_view = pd.DataFrame({
-                'value': self.current_outliers['data'],
-                'is_outlier': self.current_outliers['is_outlier']
-            })
+            # Get the outlier detection method and threshold from stored results
+            bounds = self.current_outliers['bounds']
+            detection_method = bounds['method']
+            threshold = bounds['threshold']
             
-            # Apply current view filters
-            if self.show_only_outliers.isChecked():
-                df_view = df_view[df_view['is_outlier']]
+            # Re-detect outliers on the entire dataset to ensure we handle all outliers
+            if detection_method == "IQR Method":
+                Q1 = np.percentile(data, 25)
+                Q3 = np.percentile(data, 75)
+                IQR = Q3 - Q1
+                if IQR == 0:  # Handle case where IQR is zero
+                    is_outlier = pd.Series(False, index=data.index)
+                else:
+                    lower_bound = Q1 - threshold * IQR
+                    upper_bound = Q3 + threshold * IQR
+                    is_outlier = (data < lower_bound) | (data > upper_bound)
+            elif detection_method == "Z-Score Method":
+                mean = data.mean()
+                std = data.std()
+                if std == 0:  # Handle case where std is zero
+                    is_outlier = pd.Series(False, index=data.index)
+                else:
+                    z_scores = np.abs((data - mean) / std)
+                    is_outlier = z_scores > threshold
+            elif detection_method == "Modified Z-Score":
+                median = np.median(data)
+                mad = np.median(np.abs(data - median))
+                if mad == 0:  # Handle case where MAD is zero
+                    is_outlier = pd.Series(False, index=data.index)
+                else:
+                    modified_z_scores = 0.6745 * np.abs(data - median) / mad
+                    is_outlier = modified_z_scores > threshold
             
-            # Sort based on selection
-            sort_by = self.sort_combo.currentText()
-            if sort_by == "Value":
-                df_view = df_view.sort_values('value')
-            else:  # Sort by outlier status
-                df_view = df_view.sort_values('is_outlier', ascending=False)
-            
-            # Get indices of outliers to handle based on current view
-            outlier_indices = df_view[df_view['is_outlier']].index
+            # Create mask for all outliers in the dataset
+            outlier_mask = is_outlier
             
             progress.setValue(50)
-            
-            # Create mask for outliers to handle
-            outlier_mask = pd.Series(False, index=data.index)
-            outlier_mask[outlier_indices] = True
             
             # Handle outliers using the selected method
             if method == "Remove outliers":
                 df = df[~outlier_mask]
             else:
                 if method == "Cap outliers":
-                    bounds = self.current_outliers['bounds']
-                    if bounds['method'] == "IQR Method":
-                        data[outlier_mask] = data[outlier_mask].clip(bounds['lower'], bounds['upper'])
+                    if detection_method == "IQR Method":
+                        data[outlier_mask] = data[outlier_mask].clip(lower_bound, upper_bound)
                     else:
                         # For other methods, use percentiles for capping
                         lower_bound = np.percentile(data[~outlier_mask], 1)
@@ -1165,13 +1438,17 @@ class PreprocessingPanel(QWidget):
             
             progress.setValue(90)
             
+            # Update the data manager with the new dataframe
             self.data_manager._data = df
-            QTimer.singleShot(100, lambda: self.data_manager.data_loaded.emit(df))
+            
+            # Update only the local view without emitting data_loaded signal
+            self.update_data_view()
             
             progress.setValue(100)
             QMessageBox.information(self, "Success", 
                                   f"Outliers handled successfully! "
-                                  f"Handled {outlier_mask.sum()} outliers from the current view.")
+                                  f"Handled {outlier_mask.sum()} outliers from the entire dataset. "
+                                  f"Click 'Apply Changes to Main View' to update the main data preview.")
             
         except Exception as e:
             if not progress.wasCanceled():
@@ -1216,3 +1493,290 @@ class PreprocessingPanel(QWidget):
         else:
             self.dtype_combo.setCurrentIndex(0)  # Default to empty if not found
         self.dtype_combo.blockSignals(False) 
+
+    def apply_changes_to_main_view(self):
+        """Apply the changes made in the Transform tab to the main data preview."""
+        if self.data_manager.data is None:
+            return
+        
+        try:
+            # Save current state for undo functionality
+            self.save_state()
+            
+            # Get the current data from the data manager
+            df = self.data_manager.data.copy()
+            
+            # Create a progress dialog
+            progress = QProgressDialog("Applying changes to main view...", "Cancel", 0, 100, self)
+            progress.setWindowModality(Qt.WindowModality.WindowModal)
+            progress.show()
+            progress.setValue(10)
+            
+            # Update the data manager with the current dataframe
+            self.data_manager._data = df
+            
+            progress.setValue(50)
+            
+            # Emit the data_loaded signal to update all panels
+            self.data_manager.data_loaded.emit(df)
+            
+            progress.setValue(100)
+            
+            # Show success message
+            QMessageBox.information(self, "Success", "Changes applied to main view successfully!")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error applying changes: {str(e)}")
+        finally:
+            if 'progress' in locals():
+                progress.close() 
+
+    def handle_rounding_click(self):
+        """Handle rounding button click."""
+        if not self.check_data_loaded():
+            return
+            
+        column = self.rounding_column.currentText()
+        digits = self.rounding_digits.value()
+        
+        if not column:
+            QMessageBox.warning(self, "Missing Information", 
+                              "Please select a column to round.")
+            return
+            
+        try:
+            # Save current state for undo functionality
+            self.save_state()
+            
+            df = self.data_manager.data.copy()
+            
+            # Check if column is numeric
+            if not pd.api.types.is_numeric_dtype(df[column]):
+                QMessageBox.warning(self, "Invalid Column Type", 
+                                  "Rounding can only be applied to numeric columns.")
+                return
+                
+            # Apply rounding
+            df[column] = df[column].round(digits)
+            
+            # Update the data manager with the new dataframe
+            self.data_manager._data = df
+            
+            # Update only the local view without emitting data_loaded signal
+            self.update_data_view()
+            
+            QMessageBox.information(self, "Success", 
+                                  f"Column '{column}' rounded to {digits} decimal places successfully! "
+                                  f"Click 'Apply Changes to Main View' to update the main data preview.")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error applying rounding: {str(e)}")
+
+    def handle_split_click(self):
+        """Handle split column button click."""
+        if not self.check_data_loaded():
+            return
+            
+        column = self.split_column.currentText()
+        delimiter = self.split_delimiter.text()
+        
+        if not column:
+            QMessageBox.warning(self, "Missing Information", 
+                              "Please select a column to split.")
+            return
+            
+        if not delimiter:
+            QMessageBox.warning(self, "Missing Information", 
+                              "Please enter a delimiter.")
+            return
+            
+        try:
+            # Save current state for undo functionality
+            self.save_state()
+            
+            df = self.data_manager.data.copy()
+            
+            # Create a progress dialog
+            progress = QProgressDialog("Splitting column...", "Cancel", 0, 100, self)
+            progress.setWindowModality(Qt.WindowModality.WindowModal)
+            progress.show()
+            progress.setValue(10)
+            
+            # Split the column into multiple columns
+            split_df = df[column].str.split(delimiter, expand=True)
+            
+            # If split was successful, add new columns to the dataframe
+            if split_df is not None and not split_df.empty:
+                # Generate new column names
+                new_columns = [f"{column}_{i+1}" for i in range(split_df.shape[1])]
+                
+                # Rename the split columns
+                split_df.columns = new_columns
+                
+                progress.setValue(50)
+                
+                # Add the new columns to the original dataframe
+                for new_col in new_columns:
+                    df[new_col] = split_df[new_col]
+                
+                progress.setValue(90)
+                
+                # Update the data manager with the new dataframe
+                self.data_manager._data = df
+                
+                # Update only the local view without emitting data_loaded signal
+                self.update_data_view()
+                
+                progress.setValue(100)
+                
+                QMessageBox.information(self, "Success", 
+                                      f"Column '{column}' split into {len(new_columns)} new columns successfully! "
+                                      f"Click 'Apply Changes to Main View' to update the main data preview.")
+            else:
+                QMessageBox.warning(self, "Split Failed", 
+                                  "The split operation did not produce any new columns. "
+                                  "Please check your delimiter and try again.")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error splitting column: {str(e)}")
+        finally:
+            if 'progress' in locals():
+                progress.close()
+
+    def handle_unpivot_click(self):
+        """Handle unpivot columns button click."""
+        if not self.check_data_loaded():
+            return
+            
+        id_column = self.unpivot_id_column.currentText()
+        
+        if not id_column:
+            QMessageBox.warning(self, "Missing Information", 
+                              "Please select an ID column.")
+            return
+            
+        try:
+            # Save current state for undo functionality
+            self.save_state()
+            
+            df = self.data_manager.data.copy()
+            
+            # Create a progress dialog
+            progress = QProgressDialog("Unpivoting columns...", "Cancel", 0, 100, self)
+            progress.setWindowModality(Qt.WindowModality.WindowModal)
+            progress.show()
+            progress.setValue(10)
+            
+            # Get all columns except the ID column
+            value_columns = [col for col in df.columns if col != id_column]
+            
+            if not value_columns:
+                QMessageBox.warning(self, "Invalid Selection", 
+                                  "There must be at least one column to unpivot.")
+                return
+                
+            progress.setValue(30)
+            
+            # Create a new dataframe for the unpivoted data
+            unpivoted_data = []
+            
+            # For each row in the original dataframe
+            for idx, row in df.iterrows():
+                id_value = row[id_column]
+                # For each value column, create a new row
+                for col in value_columns:
+                    unpivoted_data.append({
+                        id_column: id_value,
+                        'Variable': col,
+                        'Value': row[col]
+                    })
+            
+            progress.setValue(70)
+            
+            # Create the new unpivoted dataframe
+            unpivoted_df = pd.DataFrame(unpivoted_data)
+            
+            # Update the data manager with the new dataframe
+            self.data_manager._data = unpivoted_df
+            
+            # Update only the local view without emitting data_loaded signal
+            self.update_data_view()
+            
+            progress.setValue(100)
+            
+            QMessageBox.information(self, "Success", 
+                                  f"Unpivoted {len(value_columns)} columns successfully! "
+                                  f"Click 'Apply Changes to Main View' to update the main data preview.")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error unpivoting columns: {str(e)}")
+        finally:
+            if 'progress' in locals():
+                progress.close()
+
+    def handle_groupby_click(self):
+        """Handle group by button click."""
+        if not self.check_data_loaded():
+            return
+            
+        column = self.groupby_column.currentText()
+        aggregation = self.groupby_agg.currentText().lower()
+        
+        if not column:
+            QMessageBox.warning(self, "Missing Information", 
+                              "Please select a column to group by.")
+            return
+            
+        try:
+            # Save current state for undo functionality
+            self.save_state()
+            
+            df = self.data_manager.data.copy()
+            
+            # Create a progress dialog
+            progress = QProgressDialog("Grouping data...", "Cancel", 0, 100, self)
+            progress.setWindowModality(Qt.WindowModality.WindowModal)
+            progress.show()
+            progress.setValue(10)
+            
+            # Get numeric columns for aggregation (except the groupby column)
+            numeric_columns = df.select_dtypes(include=[np.number]).columns.tolist()
+            if column in numeric_columns:
+                numeric_columns.remove(column)
+                
+            if not numeric_columns and aggregation != 'count':
+                QMessageBox.warning(self, "Invalid Selection", 
+                                  f"There are no numeric columns to apply '{aggregation}' aggregation. "
+                                  f"Only 'count' can be used with non-numeric data.")
+                return
+                
+            progress.setValue(30)
+            
+            # Apply the groupby operation
+            if aggregation == 'count':
+                # Count can be applied to any column
+                grouped_df = df.groupby(column).size().reset_index(name='count')
+            else:
+                # For other aggregations, apply to numeric columns
+                agg_dict = {col: aggregation for col in numeric_columns}
+                grouped_df = df.groupby(column).agg(agg_dict).reset_index()
+            
+            progress.setValue(70)
+            
+            # Update the data manager with the new dataframe
+            self.data_manager._data = grouped_df
+            
+            # Update only the local view without emitting data_loaded signal
+            self.update_data_view()
+            
+            progress.setValue(100)
+            
+            QMessageBox.information(self, "Success", 
+                                  f"Data grouped by '{column}' with '{aggregation}' aggregation successfully! "
+                                  f"Click 'Apply Changes to Main View' to update the main data preview.")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error grouping data: {str(e)}")
+        finally:
+            if 'progress' in locals():
+                progress.close() 

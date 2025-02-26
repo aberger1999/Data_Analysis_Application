@@ -18,6 +18,9 @@ class DataManager(QObject):
         """Initialize the data manager."""
         super().__init__()
         self._data = None
+        self.history = []  # Stack for undo
+        self.redo_stack = []  # Stack for redo
+        self.max_history = 20  # Maximum number of operations to store
         
     @property
     def data(self):
@@ -240,4 +243,40 @@ class DataManager(QObject):
                 'lower_bound': lower_bound,
                 'upper_bound': upper_bound
             }
-        } 
+        }
+    
+    def save_state(self):
+        """Save current state to history for undo functionality."""
+        if self._data is not None:
+            self.history.append(self._data.copy())
+            if len(self.history) > self.max_history:
+                self.history.pop(0)
+            self.redo_stack.clear()  # Clear redo stack when new action is performed
+            
+    def undo(self):
+        """Undo the last operation."""
+        if self.history:
+            # Save current state to redo stack
+            if self._data is not None:
+                self.redo_stack.append(self._data.copy())
+            
+            # Restore previous state
+            previous_state = self.history.pop()
+            self._data = previous_state
+            
+            # Notify all components of the change
+            self.data_loaded.emit(self._data)
+            
+    def redo(self):
+        """Redo the last undone operation."""
+        if self.redo_stack:
+            # Save current state to history
+            if self._data is not None:
+                self.history.append(self._data.copy())
+            
+            # Restore redo state
+            redo_state = self.redo_stack.pop()
+            self._data = redo_state
+            
+            # Notify all components of the change
+            self.data_loaded.emit(self._data) 
